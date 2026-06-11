@@ -1,11 +1,6 @@
 # HTB-Sherlock-PhishNet
 # Phishing_Email_Analysis_&_Incident_Response
-
-**CTF Platform:** Hack The Box Sherlock — PhishNet  
-**Role:** SOC Analyst (Blue Team / Tier 1)  
-
----
-
+ 
 ## Overview
 
 A hands-on blue team investigation of a Business Email Compromise (BEC) phishing email targeting a finance department. The objective was to triage the email, extract and validate indicators of compromise, map attacker behavior to MITRE ATT&CK, and document a structured incident response.
