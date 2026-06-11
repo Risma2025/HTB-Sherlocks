@@ -1,8 +1,6 @@
 # HTB-Sherlock-Vantage
 # Network-Traffic-Analysis-for-Threat-Hunting-&-Incindent-Response-on-OpenStack-Cloud-Environment
 
-## Network Traffic Analysis: OpenStack Cloud Breach (Vantage Sherlock, HTB)
-
 ## 📌 Project Overview
 This project is a detailed forensic investigation of a compromised OpenStack cloud environment. By analyzing network traffic (`.pcap` files), I mapped an adversary's journey from initial reconnaissance to full data exfiltration and the establishment of persistence using the **Cyber Kill Chain** framework.
 
