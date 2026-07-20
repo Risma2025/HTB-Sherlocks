@@ -2,7 +2,7 @@
 
 A collection of hands-on blue team investigations simulating real-world cyber attacks, focusing on **Digital Forensics, Incident Response SOC Operations, Threat Hunting, and Threat Analysis**.
 
-## 🚀 Investigation Reports & Wrteups
+## 🚀 Investigation Reports & Writeups
 
 | Case & Branch Link | Type | Focus | Summary & Skills Showcased |
 | :--- | :--- | :--- | :--- |
