@@ -24,8 +24,11 @@ Every fuzzing request carries a distinctive `User-Agent` header set by the tool.
 ```
 http.user_agent contains "Fuzz"
 ```
+<img width="1366" height="546" alt="Vantage-Task1-01" src="https://github.com/user-attachments/assets/7c7bd9f5-8579-4cd2-847d-b40425e6d406" />
 
 Expanding one of the matched HTTP request headers shows `User-Agent: Fuzz Faster U Fool/2.1.0`, which is ffuf's default UA string.
+
+<img width="1366" height="117" alt="Vantage-Task1-02" src="https://github.com/user-attachments/assets/f54c104d-b0a2-44dc-99a4-9f1a75dae432" />
 
 ---
 
@@ -38,8 +41,11 @@ ffuf was brute-forcing the `Host` header (vhost/subdomain fuzzing) against the w
 ```
 ip.dst == 117.200.21.26 && http.response.code == 200 && frame.len != 596
 ```
+<img width="1366" height="385" alt="Vantage-Task2-01" src="https://github.com/user-attachments/assets/4cebd825-4ebd-4f9c-9a5e-f94284d0efb3" />
 
 Following that stream shows the server responding for the `Host: cloud.vantage.tech` request, confirming `cloud` as the valid subdomain that fronts the OpenStack Horizon dashboard.
+
+<img width="1366" height="508" alt="Vantage-Task2-02" src="https://github.com/user-attachments/assets/390ab99f-b22e-4a86-8ac0-ee389b87430b" />
 
 ---
 
@@ -66,6 +72,7 @@ After authenticating, the attacker browsed to the dashboard's **Project → API 
 ```
 http contains "admin-openrc.sh"
 ```
+<img width="1366" height="331" alt="Vantage-Task4" src="https://github.com/user-attachments/assets/464b6e3d-3f83-4210-b015-b9135166f555" />
 
 The matching `GET /dashboard/project/api_access/openrc/` request (served as `admin-openrc.sh`) is timestamped in the Wireshark frame details; converting the frame's epoch/relative time to UTC gives `09:40:29`.
 
@@ -80,6 +87,7 @@ Switching to `controller.2025-07-01.pcap`, the attacker's first request to the c
 ```
 ip.src == 117.200.21.26 && http
 ```
+<img width="1366" height="630" alt="Vantage-Task5" src="https://github.com/user-attachments/assets/3b5d6c1c-1e21-4c70-900f-b0564c206982" />
 
 The first HTTP request in this filtered list is the initial Keystone token request made using the credentials pulled from the OpenRC file. Its frame timestamp gives `09:41:44 UTC`.
 
@@ -89,13 +97,10 @@ The first HTTP request in this filtered list is the initial Keystone token reque
 
 **Answer:** `9fb84977ff7c4a0baf0d5dbb57e235c7`
 
-The Keystone authentication response (token issuance) returns a JSON body containing the full service catalog and project metadata for the authenticated user. Filtering for the request/response pair involving "project" and inspecting the JSON in the HTTP body reveals the `default_project_id`.
+First, I downloaded the OpenRC file (admin-openrc.sh) from Wireshark (view Task 4). This file contained the project details, including the `Project ID`  value ( `OS_PROJECT_ID`).
 
-```
-http.request.uri contains "project"
-```
+<img width="1366" height="603" alt="Vantage-Task6" src="https://github.com/user-attachments/assets/56c67783-ad84-47c4-b998-ad6a4901eb5c" />
 
-Alternatively, **Follow → HTTP Stream** on the Keystone token exchange shows the same `default_project_id` value directly in the JSON response — this value also appears independently inside the downloaded `admin-openrc.sh` file as `OS_PROJECT_ID`.
 
 ---
 
@@ -103,13 +108,7 @@ Alternatively, **Follow → HTTP Stream** on the Keystone token exchange shows t
 
 **Answer:** `keystone`
 
-The service catalog returned in the token response lists every OpenStack component and its endpoint (identity, compute, image, object-store, etc.). The entry with `"type": "identity"` maps to the service named **Keystone** — OpenStack's Identity service, responsible for issuing and validating auth tokens (`X-Auth-Token`) used on every subsequent API call.
-
-```
-http.request.uri contains "identity"
-```
-
-This filter surfaces the identity/token requests, and the JSON body's service catalog names `keystone` explicitly.
+The service named **Keystone** — OpenStack's Identity service, responsible for issuing and validating auth tokens (`X-Auth-Token`) used on every subsequent API call.
 
 ---
 
