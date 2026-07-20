@@ -1,18 +1,10 @@
-# HTB-Sherlock-PhishNet
-# Phishing_Email_Analysis_&_Incident_Response
- 
-## Overview
-
-A hands-on blue team investigation of a Business Email Compromise (BEC) phishing email targeting a finance department. The objective was to triage the email, extract and validate indicators of compromise, map attacker behavior to MITRE ATT&CK, and document a structured incident response.
-
----
+# HTB-Sherlock-PhishNet-Writeup
 
 ## Scenario
 
-The accounting department received an urgent email from `finance@business-finance.com` demanding immediate payment of a $4,750 overdue invoice. The email contained a malicious hyperlink and a ZIP attachment concealing a Windows batch script disguised as a PDF.
+> An accounting team receives an urgent payment request from a known vendor. The email appears legitimate but contains a suspicious link and a .zip attachment hiding malware. Your task is to analyze the email headers and uncover the attacker's scheme.
 
 ---
-
 ## Tools Used
 
 | Tool | Purpose |
@@ -26,96 +18,106 @@ The accounting department received an urgent email from `finance@business-financ
 
 ---
 
-## Key Findings
+## Task 1 — What is the originating IP address of the sender?
 
-- **Authentication bypass** — SPF, DKIM, and DMARC all returned `pass`, meaning the attacker controlled or compromised the sending domain. Standard mail gateway filtering would not have blocked this email based on authentication alone.
-- **Malicious attachment** — `Invoice_2025_Payment.zip` contained `invoice_document.pdf.bat`, a Windows batch script using double-extension masquerading (T1036) to appear as a harmless PDF.
-- **Credential harvesting URL** — a deceptive `secure.` subdomain link designed to capture victim credentials.
-- **Invoice number mismatch** — the invoice ID in the email body (`INV-2025-0012`) differed from the one in the payload URL (`INV2025-0987`), a common artefact of phishing kit templates.
-- **Social engineering** — high-urgency language ("final notice", "penalties", "immediately") used to bypass rational scrutiny.
+**Answer:** `45.67.89.10`
+
+**Explanation:** The originating IP is listed directly under the email's **Details** tab in PhishTool as well as confirmed via the SPF check in the **Authentication** tab and the `X-Originating-IP` header. This is the IP address the mail actually came from before it entered the legitimate mail relay chain — useful for reputation lookups since it's the attacker's real sending infrastructure.
 
 ---
 
-## Indicators of Compromise (IOCs)
+## Task 2 — Which mail server relayed this email before reaching the victim?
 
-### Email
+**Answer:** `203.0.113.25`
 
-| Type | Value |
-|---|---|
-| Sender | `finance@business-finance.com` |
-| Reply-To | `support@business-finance.com` |
-| Originating IP | `45.67.89.10` |
-| Relay IP | `203.0.113.25` |
-| Phishing Domain | `secure.business-finance.com` |
-
-### File
-
-| Type | Value |
-|---|---|
-| ZIP Attachment | `Invoice_2025_Payment.zip` |
-| Hidden Payload | `invoice_document.pdf.bat` |
-| SHA-256 | `8379c41239e9af845b2ab6c27a7509ae8804d7d73e455c800a551b22ba25bb4a` |
+**Explanation:** Looking at the **Transmission** tab, the email passed through three hops. The final hop before delivery to the recipient's mailbox was `mail.business-finance.com (203.0.113.25)`. Tracing the transmission path (Hop 1 → Hop 3) shows how the message moved through the spoofed sender's relay infrastructure before landing in the victim's inbox.
 
 ---
 
-## MITRE ATT&CK Mapping
+## Task 3 — What is the sender's email address?
 
-| Tactic | Technique | ID |
-|---|---|---|
-| Initial Access | Spearphishing Attachment | T1566.001 |
-| Initial Access | Spearphishing Link | T1566.002 |
-| Execution | User Execution | T1204 |
-| Defense Evasion | Masquerading | T1036 |
-| Defense Evasion | Obfuscated Files or Information | T1027 |
-| Collection | Phishing for Information | T1598 |
+**Answer:** `finance@business-finance.com`
+
+**Explanation:** Shown in the **From** field of the **Details** tab. The display name "Finance Dept" was used to add legitimacy, but the actual sending address is `finance@business-finance.com` — a lookalike domain designed to impersonate a trusted vendor.
 
 ---
 
-## Incident Response Summary
+## Task 4 — What is the 'Reply-To' email address specified in the email?
 
-**Immediate containment**
-- Quarantined the email at the gateway
-- Blocked sender domain and originating IP at the firewall
-- Blocked the phishing URL via DNS/web filtering
-- Added the file hash to endpoint detection watchlist
-- Searched mail logs for other recipients of the same campaign
+**Answer:** `support@business-finance.com`
 
-**Escalation**
-- Escalated to SOC Tier 2, Incident Response Team, and Email Security Team for enterprise-wide scoping
-
-**Recommendations**
-- Enforce attachment sandboxing for ZIP and script file types
-- Restrict execution of `.bat`/`.cmd` files from user directories
-- Conduct phishing awareness training with focus on invoice fraud patterns
-- Implement a verified payment request callback procedure for the finance team
+**Explanation:** Found in the **Details** tab under **Reply-To**. Attackers often set a different Reply-To address than the From address so that any replies (or "helpdesk" contact) get routed to an address they fully control, separate from the spoofed sending identity.
 
 ---
 
-## Analyst Workflow
+## Task 5 — What is the SPF (Sender Policy Framework) result for this email?
 
-```
-Detection → Header Analysis → URL Analysis → Attachment Analysis
-→ IOC Extraction → Threat Intel Validation → MITRE ATT&CK Mapping
-→ Containment → Escalation → Documentation
-```
+**Answer:** `pass`
+
+**Explanation:** Visible in the **Authentication** tab under the **SPF** section, tied to the Originating IP (`45.67.89.10 (Received-SPF)`). An SPF pass here is a red flag in itself — it means the attacker controls a domain with a valid SPF record, not that the email is legitimate. This is a common technique: register a similar-sounding domain and configure proper SPF/DKIM so security filters don't flag it purely on authentication failures.
 
 ---
 
-## Report
+## Task 6 — What is the domain used in the phishing URL inside the email?
 
-The full investigation report is included in this repository:  
-📄 `Phishing_Email_Analysis_Report_PhishNet.pdf`
+**Answer:** `secure.business-finance.com`
+
+**Explanation:** From the **URLs** tab, the "Download Invoice" link resolves to `https://secure.business-finance.com/invoice/details/view/INV-2025-0987/payment`. Note this is a *different* subdomain than the sender's domain — a subdomain likely spun up by the attacker specifically to host a fake payment/credential-harvesting page.
+
+---
+
+## Task 7 — What is the fake company name used in the email?
+
+**Answer:** `Business Finance Ltd.`
+
+**Explanation:** Referenced in the email body signature ("Business Finance Ltd.") in the **Rendered** view. This fabricated company name reinforces the impersonation of a legitimate finance vendor to pressure the accounting team into paying a fake overdue invoice.
 
 ---
 
-## Skills Demonstrated
+## Task 8 — What is the name of the attachment included in the email?
 
-`Phishing Triage` `Email Header Analysis` `IOC Extraction` `Malware Identification`  
-`Threat Intelligence` `MITRE ATT&CK` `Incident Documentation` `BEC Investigation`
+**Answer:** `Invoice_2025_Payment.zip`
+
+**Explanation:** Found in the **Attachments** tab. The attacker uses a "convenience" pretext (attaching the invoice directly in case the link doesn't work) as a second delivery vector for the payload, increasing the odds the victim interacts with the malicious content.
 
 ---
-<img width="1331" height="617" alt="HTB-Sherlock-2025-PhishNet" src="https://github.com/user-attachments/assets/83967414-0fd0-4589-8a9c-73aa0f4d63a4" />
+
+## Task 9 — What is the SHA-256 hash of the attachment?
+
+**Answer:** `8379C41239E9AF845B2AB6C27A7509AE8804D7D73E455C800A551B22BA25BB4A`
+
+**Explanation:** Listed in the **Attachments** tab alongside the MD5 and SHA-1 hashes. This hash is what you'd submit to VirusTotal to check reputation/detection across AV engines and to pivot on related samples or campaigns.
+
+---
+
+## Task 10 — What is the filename of the malicious file contained within the ZIP attachment?
+
+**Answer:** `invoice_document.pdf.bat`
+
+**Explanation:** Extracting/inspecting the ZIP contents reveals a double-extension file (`.pdf.bat`). This is a classic social engineering trick — Windows hides known file extensions by default, so the file appears to end in `.pdf` at a glance, but it's actually a `.bat` script that will execute code when opened.
+
+---
+
+## Task 11 — Which MITRE ATT&CK technique(s) are associated with this attack?
+
+**Answer:** `T1566.001`
+
+**Explanation:** T1566.001 is **Phishing: Spearphishing Attachment** under the Initial Access tactic. It fits here because the attacker delivered a malicious executable disguised as a PDF invoice inside an email attachment to gain initial access/execution on the victim's machine.
+
+---
+
+## Summary
+
+This Sherlock walks through a textbook Business Email Compromise (BEC) / invoice fraud phishing attack:
+
+1. A lookalike domain (`business-finance.com`) with valid SPF spoofs a "known vendor."
+2. Urgency and financial pressure ("overdue," "penalties," "suspension") are used to rush the victim.
+3. Two delivery vectors are used — a phishing link (`secure.business-finance.com`) and a malicious ZIP attachment — to maximize the chance of a successful compromise.
+4. The payload uses a double-extension trick (`invoice_document.pdf.bat`) to disguise an executable as a harmless PDF.
+5. Header analysis (Originating IP, Transmission hops, X-headers) exposes the true source of the email despite a passing SPF result, reinforcing why full header/authentication analysis — not just SPF/DKIM/DMARC status — matters during triage.
+
+>**Key takeaway for SOC L1 analysts:** never trust a passing SPF/DKIM check alone as proof of legitimacy — attackers frequently register their own lookalike domains and configure authentication correctly. Always correlate sender domain, reply-to, URL domains, and attachment behavior before clearing an email as safe.
+---
+
 https://labs.hackthebox.com/achievement/sherlock/2413013/985
 
----
-> **Disclaimer:** This analysis was performed in a controlled lab environment as part of a Hack The Box Sherlock challenge. No real systems or individuals were harmed. All IOCs are fictional and scoped to the exercise.
