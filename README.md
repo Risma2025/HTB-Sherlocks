@@ -59,7 +59,9 @@ Once `cloud.vantage.tech` was known, the attacker moved to the login form. Filte
 http.host == "cloud.vantage.tech" && http.request.uri == "/dashboard/auth/login/"
 ```
 
-Following each of these HTTP requests as a stream shows three failed logins (invalid credentials, page reloads with an error) followed by a fourth POST that receives a `302 Found` redirect — i.e., 3 failed attempts before the successful one.
+<img width="1366" height="264" alt="Vantage-Task3-login_attempts" src="https://github.com/user-attachments/assets/b35803e8-b107-44a9-9941-af32ece38567" />
+
+Focus only the source IP from 117.200.221.26, there is total 4 attempts, so we can assume the login attempts was “3” before successfully logging in to the dashboard.
 
 ---
 
@@ -112,17 +114,17 @@ The service named **Keystone** — OpenStack's Identity service, responsible for
 
 ---
 
-### Task 8 — What is the endpoint URL of the swift service?
+### Task 8 — What is the endpoint URL of the Swift service?
 
 **Answer:** `http://134.209.71.220:8080/v1/AUTH_9fb84977ff7c4a0baf0d5dbb57e235c7`
 
 The same service catalog from the Keystone token response also lists the object-storage (Swift) endpoint. Swift endpoint URLs always follow the pattern `/v1/AUTH_<project_id>`, using the project ID captured in Task 6.
 
 ```
-http.request.uri contains "project"
-```
+http.request.uri contains "/v1/AUTH_9fb84977ff7c4a0baf0d5dbb57e235c7"
 
-Reading the catalog entry with `"type": "object-store"` in the Follow HTTP Stream output gives the full Swift `publicURL`, matching the pattern above.
+```
+<img width="1366" height="293" alt="Vantage-Task8" src="https://github.com/user-attachments/assets/9e6e50d6-e5ad-4f57-91f2-89d44d7257a8" />
 
 ---
 
