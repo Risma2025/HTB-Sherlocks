@@ -5,6 +5,7 @@
 > An accounting team receives an urgent payment request from a known vendor. The email appears legitimate but contains a suspicious link and a .zip attachment hiding malware. Your task is to analyze the email headers and uncover the attacker's scheme.
 
 ---
+
 ## Tools Used
 
 | Tool | Purpose |
@@ -130,7 +131,7 @@ T1566.001 is **Phishing: Spearphishing Attachment** under the Initial Access tac
 4. The payload uses a double-extension trick (`invoice_document.pdf.bat`) to disguise an executable as a harmless PDF.
 5. Header analysis (Originating IP, Transmission hops, X-headers) exposes the true source of the email despite a passing SPF result, reinforcing why full header/authentication analysis — not just SPF/DKIM/DMARC status — matters during triage.
 
-The Forensic investigation (DFIR) report is included in this repository.
+The Forensic investigation (DFIR) report is included in this repository:[Read the PhishNet DFIR Report](https://github.com/Risma2025/HTB-Sherlocks/blob/HTB-Sherlock-PhishNet/HTB-Sherlock-PhishNet-Phishing_Email_Analysis_%26_IR_Report-.pdf)
 
 >**Key takeaway for SOC L1 analysts:** never trust a passing SPF/DKIM check alone as proof of legitimacy — attackers frequently register their own lookalike domains and configure authentication correctly. Always correlate sender domain, reply-to, URL domains, and attachment behavior before clearing an email as safe.
 ---
@@ -139,6 +140,6 @@ The Forensic investigation (DFIR) report is included in this repository.
 https://labs.hackthebox.com/achievement/sherlock/2413013/985
 
 ---
-## 📬 Contact Me
-* **LinkedIn:** [risma-fareedh](https://www.linkedin.com/in/risma-fareedh-066a19199) | **Hack The Box:** [HTB Profile](https://profile.hackthebox.com/profile/019d51eb-d379-72f0-ad54-5a4e2121b80b) | **GitHub:** [Risma2025](https://github.com/Risma2025)
+## 📬 Contacts & Profiles
+**LinkedIn:** [risma-fareedh](https://www.linkedin.com/in/risma-fareedh-066a19199) | **Hack The Box:** [HTB Profile](https://profile.hackthebox.com/profile/019d51eb-d379-72f0-ad54-5a4e2121b80b) | **GitHub:** [Risma2025](https://github.com/Risma2025)
 
