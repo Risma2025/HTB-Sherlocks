@@ -8,7 +8,7 @@ A collection of hands-on blue team investigations simulating real-world cyber at
 | :--- | :--- | :--- | :--- |
 | [Fruitzy](https://github.com/Risma2025/HTB-Sherlocks/tree/HTB-Sherlock-Fruitzy) | Writeup | **RMM Backdoor Compromise** | Analyzed a complete phishing-to-RMM backdoor compromise attack chain. Conducted endpoint artifact recovery to uncover a timestomped Datto RMM payload. |
 | [PhishNet](https://github.com/Risma2025/HTB-Sherlocks/tree/HTB-Sherlock-PhishNet) | Writeup & DFIR Report | **Phishing Email Forensics** | Investigated a targeted Business Email Compromise (BEC) spearphishing campaign bypassing SPF/DKIM. Tracked initial access vectors involving double-extension batch script payloads disguised as PDF invoices. |
-| [Vantage](https://github.com/Risma2025/HTB-Sherlocks/tree/HTB-Sherlock-Vantage) | DFIR Report | **OpenStack Cloud Breach** | Investigated an OpenStack infrastructure cloud breach. Reconstructed a full cyber kill chain involving web fuzzing, credential brute-forcing, internal API token abuse, and data exfiltration via Swift. |
+| [Vantage](https://github.com/Risma2025/HTB-Sherlocks/tree/HTB-Sherlock-Vantage) | Writeup | **OpenStack Cloud Breach** | Investigated an OpenStack infrastructure cloud breach. Reconstructed a full cyber kill chain involving web fuzzing, credential brute-forcing, internal API token abuse, and data exfiltration via Swift. |
 | [Telly](https://github.com/Risma2025/HTB-Sherlocks/tree/HTB-Sherlock-Telly) | DFIR Report | **Telnet Authentication Bypass** | Performed network traffic analysis on a Linux legacy protocol exploit (CVE-2026-24061). Traced an unauthenticated Telnet root bypass, rogue local account creation, and database exfiltration over a C2 channel. |
 
 ---
