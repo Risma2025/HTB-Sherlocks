@@ -137,8 +137,11 @@ After obtaining the Swift endpoint, the attacker listed the account's containers
 ```
 http.request.uri == "/v1/AUTH_9fb84977ff7c4a0baf0d5dbb57e235c7?format=json"
 ```
+<img width="1366" height="156" alt="Vantage-Task9-01" src="https://github.com/user-attachments/assets/5840810e-a5af-4606-920f-dbc53c536599" />
 
 Following this HTTP stream reveals a JSON array listing three containers: `dev-files`, `employee-data`, and `user-data`.
+
+<img width="1366" height="479" alt="Vantage-Task9-02" src="https://github.com/user-attachments/assets/3f4a3cbc-4c0c-470d-ba78-811f4b585f51" />
 
 ---
 
@@ -151,6 +154,7 @@ With the containers enumerated, the attacker requested the object inside `user-d
 ```
 http.request.uri contains "user-details.csv"
 ```
+<img width="1366" height="257" alt="Vantage-Task10" src="https://github.com/user-attachments/assets/5f361d5e-f1d6-4135-8413-0e47fdb40778" />
 
 The frame timestamp on this GET request (and its `200 OK` response) converts to `09:45:23 UTC`.
 
@@ -165,8 +169,12 @@ With the `user-details.csv` request/response packet selected, right-clicking it 
 ```
 http.request.uri contains "user-details.csv"
 ```
+<img width="1366" height="193" alt="Vantage-Task11-01" src="https://github.com/user-attachments/assets/da2ca4e0-5341-495c-af5e-96fa49cb65a6" />
 
-Counting the data rows in the reconstructed CSV (excluding the header row) gives 28 individual user records — full names, emails, and phone numbers.
+Following TCP stream, then count data rows in the reconstructed CSV (excluding the header row) gives 28 individual user records — full names, emails, and phone numbers.
+
+<img width="1366" height="610" alt="Vantage-Task11-02" src="https://github.com/user-attachments/assets/85862282-ae59-47b6-8dac-2fcfca85a71d" />
+
 
 ---
 
@@ -179,8 +187,11 @@ To guarantee continued access even if the stolen admin credentials were rotated,
 ```
 http.request.uri contains "/identity/v3/users"
 ```
+<img width="1366" height="519" alt="Vantage-Task12-01" src="https://github.com/user-attachments/assets/620c9449-05e5-41a5-9c0d-14b6e398d4c0" />
 
 Following the HTTP stream shows the JSON request body sent to `POST /v3/users`, with `"name": "jellibean"` as the new account's username.
+
+<img width="1366" height="384" alt="Vantage-Task12-02" src="https://github.com/user-attachments/assets/f247f2f4-fab0-4776-a592-2350cd992255" />
 
 ---
 
@@ -188,13 +199,7 @@ Following the HTTP stream shows the JSON request body sent to `POST /v3/users`, 
 
 **Answer:** `P@$$word`
 
-The same POST request body used to create the `jellibean` account (Task 12) also carries the account's initial password in cleartext, since the request was sent over unencrypted HTTP.
-
-```
-http.request.uri contains "/identity/v3/users"
-```
-
-Reading further into that Follow HTTP Stream output, the JSON `"password"` field shows the value `P@$$word`, set at the same time as the account creation.
+The same POST request body used to create the `jellibean` account (Task 12) also carries the account's password in cleartext under the  `password` field.
 
 ---
 
@@ -203,6 +208,8 @@ Reading further into that Follow HTTP Stream output, the JSON `"password"` field
 **Answer:** `T1136.003`
 
 Creating a new privileged account inside a compromised cloud environment to survive credential rotation maps directly to the MITRE ATT&CK **Persistence** tactic (TA0003), specifically technique **T1136 – Create Account**, sub-technique **.003 – Cloud Account** — since the account (`jellibean`) was provisioned via the OpenStack (cloud) Keystone identity API rather than a local OS account.
+
+<img width="1348" height="614" alt="Vantage-Task14" src="https://github.com/user-attachments/assets/32e5dc7c-6dea-4de6-9c51-dc97796bbda2" />
 
 ---
 
