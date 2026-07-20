@@ -1,20 +1,223 @@
-# HTB-Sherlock-Vantage
-# Network-Traffic-Analysis-for-Threat-Hunting-&-Incindent-Response-on-OpenStack-Cloud-Environment
+# HTB-Sherlock-Vantage-Writeup
 
-## 📌 Project Overview
-This project is a detailed forensic investigation of a compromised OpenStack cloud environment. By analyzing network traffic (`.pcap` files), I mapped an adversary's journey from initial reconnaissance to full data exfiltration and the establishment of persistence using the **Cyber Kill Chain** framework.
+## Scenario
 
-**Scenario:** On July 1, 2025, unauthorized access was detected on the `cloud.vantage.tech` subdomain. The attacker bypassed authentication, compromised OpenStack API credentials, and exfiltrated sensitive PII from Swift object storage.
+> A small company moved some of its resources to a private cloud installation. The developers left the redirect to the dashboard on their web server. The security team got an email from the alleged attacker stating that the user data was leaked. It is up to you to investigate the situation.
 
 ---
 
-## 🛡️ Executive Summary
-* **Target:** OpenStack Infrastructure-as-a-Service (IaaS).
-* **Attack Vector:** Subdomain fuzzing followed by Credential Brute Force.
-* **Impact:** Exfiltration of `user-details.csv` (28 records) and `employee-details.csv` (50 records).
-* **Persistence:** Unauthorized creation of a new administrative user `jellibean`.
+Two capture files are provided:
+
+| File | Description |
+|---|---|
+| `web-server.2025-07-01.pcap` | Traffic to/from the public-facing web server and the Horizon login dashboard | 
+| `controller.2025-07-01.pcap` | Traffic to/from the OpenStack controller node (Keystone / Swift API) |
 
 ---
+
+### Task 1 — What tool did the attacker use to fuzz the web server? (Format: nmap@7.80)
+
+**Answer:** `ffuf@2.1.0`
+
+Every fuzzing request carries a distinctive `User-Agent` header set by the tool. Filtering HTTP requests and inspecting the `User-Agent` field in the packet details pane (or filtering directly on the string) exposes the tool and its version.
+
+```
+http.user_agent contains "Fuzz"
+```
+
+Expanding one of the matched HTTP request headers shows `User-Agent: Fuzz Faster U Fool/2.1.0`, which is ffuf's default UA string.
+
+---
+
+### Task 2 — Which subdomain did the attacker discover?
+
+**Answer:** `cloud`
+
+ffuf was brute-forcing the `Host` header (vhost/subdomain fuzzing) against the web server. Most fuzzed subdomains return a generic "not found" page of identical size (`596` bytes), so filtering out that size isolates the one response that actually differs — the successful hit.
+
+```
+ip.dst == 117.200.21.26 && http.response.code == 200 && frame.len != 596
+```
+
+Following that stream shows the server responding for the `Host: cloud.vantage.tech` request, confirming `cloud` as the valid subdomain that fronts the OpenStack Horizon dashboard.
+
+---
+
+### Task 3 — How many login attempts did the attacker make before successfully logging in to the dashboard?
+
+**Answer:** `3`
+
+Once `cloud.vantage.tech` was known, the attacker moved to the login form. Filtering on the login URI isolates every POST attempt to the dashboard's auth endpoint; each attempt can then be checked (in order) for its resulting status code.
+
+```
+http.host == "cloud.vantage.tech" && http.request.uri == "/dashboard/auth/login/"
+```
+
+Following each of these HTTP requests as a stream shows three failed logins (invalid credentials, page reloads with an error) followed by a fourth POST that receives a `302 Found` redirect — i.e., 3 failed attempts before the successful one.
+
+---
+
+### Task 4 — When did the attacker download the OpenStack API remote access config file? (UTC)
+
+**Answer:** `2025-07-01 09:40:29`
+
+After authenticating, the attacker browsed to the dashboard's **Project → API Access** section and pulled the OpenRC file, which bundles the API endpoint URL, project ID, and credentials needed to talk to OpenStack directly instead of through the web UI.
+
+```
+http contains "admin-openrc.sh"
+```
+
+The matching `GET /dashboard/project/api_access/openrc/` request (served as `admin-openrc.sh`) is timestamped in the Wireshark frame details; converting the frame's epoch/relative time to UTC gives `09:40:29`.
+
+---
+
+### Task 5 — When did the attacker first interact with the API on the controller node? (UTC)
+
+**Answer:** `2025-07-01 09:41:44`
+
+Switching to `controller.2025-07-01.pcap`, the attacker's first request to the controller can be isolated by filtering on the attacker's source IP together with the HTTP protocol, then sorting by time and taking the earliest frame.
+
+```
+ip.src == 117.200.21.26 && http
+```
+
+The first HTTP request in this filtered list is the initial Keystone token request made using the credentials pulled from the OpenRC file. Its frame timestamp gives `09:41:44 UTC`.
+
+---
+
+### Task 6 — What is the project ID of the default project accessed by the attacker?
+
+**Answer:** `9fb84977ff7c4a0baf0d5dbb57e235c7`
+
+The Keystone authentication response (token issuance) returns a JSON body containing the full service catalog and project metadata for the authenticated user. Filtering for the request/response pair involving "project" and inspecting the JSON in the HTTP body reveals the `default_project_id`.
+
+```
+http.request.uri contains "project"
+```
+
+Alternatively, **Follow → HTTP Stream** on the Keystone token exchange shows the same `default_project_id` value directly in the JSON response — this value also appears independently inside the downloaded `admin-openrc.sh` file as `OS_PROJECT_ID`.
+
+---
+
+### Task 7 — Which OpenStack service provides authentication and authorization for the OpenStack API?
+
+**Answer:** `keystone`
+
+The service catalog returned in the token response lists every OpenStack component and its endpoint (identity, compute, image, object-store, etc.). The entry with `"type": "identity"` maps to the service named **Keystone** — OpenStack's Identity service, responsible for issuing and validating auth tokens (`X-Auth-Token`) used on every subsequent API call.
+
+```
+http.request.uri contains "identity"
+```
+
+This filter surfaces the identity/token requests, and the JSON body's service catalog names `keystone` explicitly.
+
+---
+
+### Task 8 — What is the endpoint URL of the swift service?
+
+**Answer:** `http://134.209.71.220:8080/v1/AUTH_9fb84977ff7c4a0baf0d5dbb57e235c7`
+
+The same service catalog from the Keystone token response also lists the object-storage (Swift) endpoint. Swift endpoint URLs always follow the pattern `/v1/AUTH_<project_id>`, using the project ID captured in Task 6.
+
+```
+http.request.uri contains "project"
+```
+
+Reading the catalog entry with `"type": "object-store"` in the Follow HTTP Stream output gives the full Swift `publicURL`, matching the pattern above.
+
+---
+
+### Task 9 — How many containers were discovered by the attacker?
+
+**Answer:** `3`
+
+After obtaining the Swift endpoint, the attacker listed the account's containers with a JSON-formatted GET request against the root of that endpoint.
+
+```
+http.request.uri == "/v1/AUTH_9fb84977ff7c4a0baf0d5dbb57e235c7?format=json"
+```
+
+Following this HTTP stream reveals a JSON array listing three containers: `dev-files`, `employee-data`, and `user-data`.
+
+---
+
+### Task 10 — When did the attacker download the sensitive user data file? (UTC)
+
+**Answer:** `2025-07-01 09:45:23`
+
+With the containers enumerated, the attacker requested the object inside `user-data`, downloading the CSV that holds customer PII. Filtering directly on the filename isolates that specific transfer.
+
+```
+http.request.uri contains "user-details.csv"
+```
+
+The frame timestamp on this GET request (and its `200 OK` response) converts to `09:45:23 UTC`.
+
+---
+
+### Task 11 — How many user records are in the sensitive user data file?
+
+**Answer:** `28`
+
+With the `user-details.csv` request/response packet selected, right-clicking it and choosing **Follow → HTTP Stream** reconstructs the full CSV body that was transferred in the response, exactly as the attacker received it.
+
+```
+http.request.uri contains "user-details.csv"
+```
+
+Counting the data rows in the reconstructed CSV (excluding the header row) gives 28 individual user records — full names, emails, and phone numbers.
+
+---
+
+### Task 12 — For persistence, the attacker created a new user with admin privileges. What is the username of the new user?
+
+**Answer:** `jellibean`
+
+To guarantee continued access even if the stolen admin credentials were rotated, the attacker called Keystone's identity API to provision a brand-new account. Filtering on the users endpoint isolates that POST request.
+
+```
+http.request.uri contains "/identity/v3/users"
+```
+
+Following the HTTP stream shows the JSON request body sent to `POST /v3/users`, with `"name": "jellibean"` as the new account's username.
+
+---
+
+### Task 13 — What is the password of the new user?
+
+**Answer:** `P@$$word`
+
+The same POST request body used to create the `jellibean` account (Task 12) also carries the account's initial password in cleartext, since the request was sent over unencrypted HTTP.
+
+```
+http.request.uri contains "/identity/v3/users"
+```
+
+Reading further into that Follow HTTP Stream output, the JSON `"password"` field shows the value `P@$$word`, set at the same time as the account creation.
+
+---
+
+### Task 14 — What is the MITRE ATT&CK technique ID of the technique in Task 12?
+
+**Answer:** `T1136.003`
+
+Creating a new privileged account inside a compromised cloud environment to survive credential rotation maps directly to the MITRE ATT&CK **Persistence** tactic (TA0003), specifically technique **T1136 – Create Account**, sub-technique **.003 – Cloud Account** — since the account (`jellibean`) was provisioned via the OpenStack (cloud) Keystone identity API rather than a local OS account.
+
+---
+
+## Attack Summary — Cyber Kill Chain mapping
+
+| Stage | Action | Evidence |
+|---|---|---|
+| Reconnaissance | Subdomain fuzzing with `ffuf@2.1.0` discovers `cloud.vantage.tech` | `web-server.pcap` |
+| Weaponization / Delivery | Targeting Horizon login at `/dashboard/auth/login/` | `web-server.pcap` |
+| Exploitation | 3 failed logins, 4th attempt succeeds with `admin:StrongAdminSecret` (`302 Found`) | `web-server.pcap` |
+| Installation | Downloads `admin-openrc.sh` at `09:40:29 UTC` | `web-server.pcap` |
+| Command & Control | Uses stolen token to query Keystone at `09:41:44 UTC`; discovers project ID `9fb84977ff7c4a0baf0d5dbb57e235c7` | `controller.pcap` |
+| Actions on Objectives | Lists 3 Swift containers, exfiltrates `user-details.csv` (28 records) at `09:45:23 UTC`; creates admin backdoor user `jellibean` (`T1136.003`) | `controller.pcap` |
+
+---
+
 ### 📅 Forensic Timeline (July 1, 2025)
 
 | Time (UTC) | Phase | Event | Source/Artifact |
@@ -28,36 +231,9 @@ This project is a detailed forensic investigation of a compromised OpenStack clo
 | **09:48:02** | Persistence | Created rogue user `jellibean` | POST /v3/users |
 | **09:49:15** | Persistence | Granted `admin` role to `jellibean` | PUT /v3/roles/ |
 
-## 🕵️ Technical Investigation & Kill Chain Mapping
-
-### 1. Reconnaissance
-The attacker used **ffuf v2.1.0** to perform directory and subdomain enumeration.
-* **Finding:** Identified the `cloud.vantage.tech` dashboard.
-* **Artifact:** HTTP GET requests with the User-Agent `Fuzz Faster U Fool v2.1.0-dev`.
-
-### 2. Exploitation
-The attacker targeted the Horizon login portal and successfully authenticated using admin credentials at **09:40:07 UTC**.
-
-### 3. Installation & Credential Harvesting
-Once inside the dashboard, the attacker navigated to **Project > API Access**.
-* **Artifact:** Downloaded `admin-openrc.sh`.
-* **Impact:** This file contained the `OS_AUTH_URL` and credentials required to bypass the Horizon GUI. The attacker transitioned to using the **OpenStack SDK/CLI** for programmatic environment traversal.
-
-### 4. Actions on Objectives (Exfiltration)
-The attacker systematically enumerated and drained Swift object storage containers using a stolen `X-Auth-Token`.
-* **Target Containers:** `dev-files`, `employee-data`, and `user-data`.
-* **Exfiltration (09:45:23 UTC):** Downloaded `user-details.csv` (28 PII records).
-* **Exfiltration (09:45:47 UTC):** Downloaded `employee-details.csv` (50 internal staff records).
-* **Tooling:** Traffic analysis shows the `User-Agent: openstacksdk/4.6.0`, indicating automated or scripted exfiltration.
-
-### 5. Persistence
-To ensure long-term access, the attacker performed a two-step persistence maneuver:
-* **Account Creation:** Issued a `POST` request to `/v3/users` to create the user `jellibean` (Password: `P@$$word`).
-* **Privilege Escalation:** Assigned the **"admin" role** to the `jellibean` account, granting full control over the cloud environment even if original credentials are reset.
-
 ---
 
-## 🔍 Threat Hunting Indicators (IOCs)
+## 🔍 Indicators of Compromise (IOCs)
 | Type | Value | Description |
 | :--- | :--- | :--- |
 | **IP Address** | `134.209.71.220` | Attacker Source IP |
@@ -68,21 +244,11 @@ To ensure long-term access, the attacker performed a two-step persistence maneuv
 | **Persistence** | `jellibean` | Rogue Administrative Account |
 
 ---
+<img width="1330" height="620" alt="Vantage-Achievement-Badge" src="https://github.com/user-attachments/assets/269cb388-a8b3-46e9-a530-92a43a1d768c" />
 
-## 💡 Recommendations & Remediation
-* **Identity:** Implement Multi-Factor Authentication (MFA) for the Horizon dashboard and API access.
-* **Secret Management:** Rotate all API credentials and move away from plaintext `.sh` configuration files to a secure vault system.
-* **Monitoring:** Enable real-time alerts for any `POST` requests to the Keystone API involving user creation or role assignment.
-* **Network:** Restrict OpenStack API endpoints to internal IP ranges or VPN access only.
-
----
-
-## 🛠️ Tools Used
-* **Wireshark:** Network traffic analysis and HTTP stream carving.
-* **OpenStack SDK:** Analysis of API interaction patterns.
-
----
-*This investigation was completed as part of the **Vantage Sherlock** on Hack The Box.*
-
-<img width="1330" height="620" alt="Screenshot (1714)" src="https://github.com/user-attachments/assets/7d2f5698-07c7-40df-9a09-6043e9ffd590" />
 https://labs.hackthebox.com/achievement/sherlock/2413013/1162
+
+---
+
+## 📬 Contact & Profiles
+**LinkedIn:** [risma-fareedh](https://www.linkedin.com/in/risma-fareedh-066a19199) | **Hack The Box:** [HTB Profile](https://profile.hackthebox.com/profile/019d51eb-d379-72f0-ad54-5a4e2121b80b) | **GitHub:** [Risma2025](https://github.com/Risma2025)
