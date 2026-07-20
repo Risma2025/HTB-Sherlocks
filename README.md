@@ -124,11 +124,9 @@ T1566.001 is **Phishing: Spearphishing Attachment** under the Initial Access tac
 
 ## Summary
 
-This Sherlock walks through a textbook Business Email Compromise (BEC) / invoice fraud phishing attack:
-
-1. A lookalike domain (`business-finance.com`) with valid SPF spoofs a "known vendor."
+1. This Sherlock walks through a Business Email Compromise (BEC) or phishing email attack.
 2. Urgency and financial pressure ("overdue," "penalties," "suspension") are used to rush the victim.
-3. Two delivery vectors are used — a phishing link (`secure.business-finance.com`) and a malicious ZIP attachment — to maximize the chance of a successful compromise.
+3. A phishing link (`secure.business-finance.com`) and a malicious ZIP attachment — to maximize the chance of a successful compromise.
 4. The payload uses a double-extension trick (`invoice_document.pdf.bat`) to disguise an executable as a harmless PDF.
 5. Header analysis (Originating IP, Transmission hops, X-headers) exposes the true source of the email despite a passing SPF result, reinforcing why full header/authentication analysis — not just SPF/DKIM/DMARC status — matters during triage.
 
