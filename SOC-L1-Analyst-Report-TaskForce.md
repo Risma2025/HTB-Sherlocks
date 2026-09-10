@@ -1,13 +1,13 @@
-# Threat Hunt Investigation Report
+# Threat Hunting Investigation Report
 
-**Classification:** TLP:AMBER (Lab Exercise)
-**Report Type:** Proactive Threat Hunt — Confirmed Compromise
-**Environment:** ALLIANCE.htb (Active Directory)
-**Analyst:** SOC L1
-**Date of Investigation:** 2026-06-15 – 2026-06-24
-**Incident Window:** 2026-06-09 12:41 UTC – 2026-06-09 22:38 UTC
-**Severity:** High
-**Status:** Confirmed — Escalated for Containment & IR
+- **Classification:** TLP:AMBER (Lab Exercise)
+- **Report Type:** Proactive Threat Hunt — Confirmed Compromise
+- **Environment:** ALLIANCE.htb (Active Directory)
+- **Analyst:** SOC L1
+- **Date of Investigation:** 2026-09-03
+- **Incident Window:** 2026-06-09 12:41 UTC – 2026-06-09 22:38 UTC
+- **Severity:** High
+- **Status:** Confirmed — Escalated for Containment & IR
 
 ---
 
@@ -195,3 +195,10 @@ This investigation relied heavily on cross-source correlation due to real-world-
 - **Pivoting on Logon ID** to reconstruct session activity when direct logon events (4624) were unavailable.
 - **Using non-traditional artifacts** (the `CLIENTNAME` registry value under Volatile Environment) to attribute a connecting client hostname when standard logon telemetry was incomplete.
 - **Independent verification**: all findings in this report were validated directly against exported raw log data rather than relying on a single tool's summary view, which also surfaced a discrepancy in the originally reported task name (a one-character typo with direct forensic significance).
+  
+---
+*Prepared by **Risma Fareedh** | Cybersecurity Analyst / Digital Forensics / SOC / CTF Player / Aspiring Purple Teamer* 🛡️
+
+[![LinkedIn](https://shields.io)](https://linkedin.com)
+[![Hack The Box](https://shields.io)](https://hackthebox.com)
+[![X / Twitter](https://shields.io)](https://x.com)
