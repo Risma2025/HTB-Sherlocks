@@ -1,10 +1,7 @@
-# PhantomRing — HTB Sherlock Writeup
-### Static Malware Analysis on a Linux Post-Exploitation Agent
-
----
+# HTB-Sherlock-PhantomRing — Writeup
 
 ## 📖 Scenario
-
+### Static Malware Analysis on a Linux Post-Exploitation Agent
 > The SOC intercepted a suspicious binary (`agent`) sitting in `/var/tmp` on a Linux server, attempting outbound connections. It's suspected to be a post-exploitation agent. Task: statically analyze it to identify its capabilities, extract IOCs, and profile the threat actor's infrastructure — **without ever executing it.**
 
 ---
@@ -240,6 +237,7 @@ Reading the ASCII across the line break: `sdes` + `truct` = **`sdestruct`** — 
 
 <img width="1339" height="616" alt="htb-sherlock-phantomring-solved" src="https://github.com/user-attachments/assets/88d7378a-68e1-48d0-9f8d-ba60c832c4d1" />
 https://labs.hackthebox.com/achievement/sherlock/2413013/1296
+
 ---
 
 ## ⚠️ Disclaimer
